@@ -1,0 +1,133 @@
+Ejercicio 1
+00:
+111 00000 000 00101 0010011
+addi x5 x0 7
+
+04:
+1 00000 000 00110 0010011
+addi x6 x0 1
+
+08:
+110 00101 111 00110 0110011
+and x6 x5 x6 
+
+0C:
+110 000 0100 0 1100011
+beq x6 x0 8 --> 0000000001000
+          
+10:
+111111111111 00101 000 00101 0010011
+addi x5 x5 -1
+
+14:
+0100000 00001 00101 101 00101 0010011
+srai x5 x5 1
+
+
+
+
+Ejercicio 2:
+
+0             li a0 4228            // Cargo en a0 4228.
+4             li a1 2114            // Cargo en a1 2114.
+8             jal ra resta          // Salto a resta pero guardo en x1 la posicion actual del pc + 4 que es 0x0C.
+
+12 fin:       beq zero zero fin     // Quedo loopeando en fin.
+     
+16 resta: 
+   prologo:   addi sp sp -4         // Hago lugar en el stack.
+20            sw ra 0(sp)           // Guardo la posicion de retorno actual en la posicion 0 del stack.
+24            sub a0 a0 a1          // hago a0 - a1 y lo guardo en a0
+28            beq a0 zero epilogo   // si a0 vale 0 salto a epilogo.
+
+32 sigo:      jal ra resta          // Salto a resta pero guardo esta posicion del pc en x1 que es 0x20.
+36 epilogo: 
+              lw ra 0(sp)           // Cargo el ra que guarde en el stack.
+40            addi sp sp 4          // Restauro el stack.
+44            ret                   // Salto al ra actual.
+
+
+Respuestas:
+a) fin esta en 0x0C , resta y prologo en 0x10 , sigo en 0x20 , epilogo en 0x24.
+
+b) El primer llamado se desplaza 8 --> 0000 1000.
+   El segundo llamado que aparece se desplaza 0 --> 0000 0000
+   El tercer llamado se desplaza 8 --> 0000 1000
+   El ultimo llamado se desplaza -16 --> 1111 0000
+
+c) el rango de la instruccion li es:
+en decimal: '-2147483648' hasta '2147483647' , 
+en binario: '1000 0000 0000 0000 0000 0000 0000 0000' hasta '0111 1111 1111 1111 1111 1111 1111 1111'
+
+   el rango de la instruccion addi es:
+en decimal: '-2048' hasta '2047'
+en binario: '1000 0000 0000' hasta '0111 1111 1111'
+
+
+d) Cuando trabaja con constantes mas grandes que 12 bits utiliza lui (cargar los 20 bits mas altos) y luego un addi (sumando los 12 bits mas bajos) lo que le permite trabajar con constantes de 32 bits.
+
+e) El valor final de a1 es 2114 , no lo modifico en ninguna parte.
+
+f) El valor final del pc es 12.
+
+g)   - li a0 a0 4228
+     - li a1 a1 2114
+     - jal ra resta
+resta:
+     - addi sp sp -4
+     - sw ra 0(sp)
+     - sub a0 a0 a1
+     - beq a0 zero epilogo
+     - jal ra resta
+resta:
+     - addi sp sp -4
+     - sw ra 0(sp)
+     - sub a0 a0 a1
+     - beq a0 zero epilogo
+
+epilogo:
+     - lw ra 0(sp)
+     - addi sp sp 4
+     - ret
+     - lw ra 0(sp)
+     - addi sp sp 4
+     - ret
+fin:
+     - beq zero zero fin
+
+h) Llamo SP0 a la posicion inicial del pc por que ni idea donde arranca , y ra al inicio tendra basura.
+   durante la ejecucion sp valdra SP0 - 4 , SP0 - 8 , SP0 - 4, SP0.
+   y ra valdra 12 , 32 , 32 , 12.
+
+i) srli a1 a0 1.
+
+
+
+Ejercicio 3:
+
+.text:
+main:    
+    addi x11 x0 4
+    lw x12 0 x11
+    addi x13 x0 4
+    lw x13 0 x13
+    lw x13 0 x13
+    beq x12 x13 -20
+    
+guardar:
+    
+    lui x14 0xfffa6
+    addi x14 x14 -1539
+    add x12 x14 x12
+    sw x11 40 x12
+     
+fin_programa:    
+    addi x10 x0 0
+    addi x17 x0 93
+    ecall 
+
+
+Cuando el pc arranca en 0x08 el programa queda loopeando infinitamente en main.La instruccion lw x12 0 x11 y lw x3 0 x13 , carga en x12 y x13 lo que hay en memoria[4] , como cualquier valor de memoria no explicitado es 0 , en ambos registros cargara 0.La segunda instruccion lw x13 0 x13 hara lo mismo ya que x13 vale 0.Entonces siempre se cumplira la condicion de beq x12 x13 -20 lo que deja loopeando en infinito el programa.
+
+Cuando el pc arranca en 0x00 , ahora memoria[4] contiene la instruccion lw x12 0 x11 codificada en 32 bits (en este caso 0x00400593) por lo tanto cargara ese valor en ambos x12 y x13.Luego cuando haga denuevo lw x13 0 x13 , va a querer cargar lo que hay en memoria[0 + 0x00400593] y como es un valor no explicitado pondra x13 en 0.Ahora x12 vale 0x00400593 y x13 vale 0 por lo tanto no se cumple el branch y logra seguir ejecutando el programa hasta terminar.
+   
